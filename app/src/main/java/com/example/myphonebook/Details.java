@@ -8,6 +8,8 @@ import android.view.View;
 import android.widget.ImageView;
 import android.widget.TextView;
 
+import com.bumptech.glide.Glide;
+
 public class Details extends AppCompatActivity {
     Entry entry;
 
@@ -33,8 +35,11 @@ public class Details extends AppCompatActivity {
                     email.setVisibility(View.VISIBLE);
                 }
                 if (pbe.pictureProvider.hasPicture()) {
-                    bg.setImageDrawable(getResources().getDrawable(R.drawable.avatar));
-                    bg.setVisibility(View.VISIBLE);
+                    Glide.with(this)
+                            .load(pbe.pictureProvider.pic())
+                            .into(bg);
+                    /*bg.setImageDrawable(getResources().getDrawable(R.drawable.avatar));
+                    bg.setVisibility(View.VISIBLE);*/
                 }
             }
         }
