@@ -14,7 +14,7 @@
         android:theme="@style/Theme.MyPhoneBook"
         tools:targetApi="31">
         <activity
-            android:name=".Details"
+            android:name=".DetailsActivity"
             android:exported="false"
             android:parentActivityName=".MainActivity">
         <!-- The meta-data tag is required if you support API level 15 and lower -->

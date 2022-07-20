@@ -8,7 +8,6 @@ import android.database.Cursor;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.ContactsContract;
-import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -18,7 +17,7 @@ import java.util.List;
 public class ActualContactListProvider implements
         ContactListProvider, android.app.LoaderManager.LoaderCallbacks<Cursor> {
 
-    private Context ctx;
+    private final Context ctx;
     List<ContactListReceiver> subscribers;
     public Cursor mCursor=null;
 
@@ -35,14 +34,14 @@ public class ActualContactListProvider implements
     public void onLoadFinished(android.content.Loader<Cursor> loader, Cursor d) {
         mCursor=d;
         for(ContactListReceiver r:subscribers)
-            r.setData(this);
+            r.setData(this.getContacts());
     }
 
     @Override
     public void onLoaderReset(android.content.Loader<Cursor> loader) {
         mCursor=null;
         for(ContactListReceiver r:subscribers)
-            r.setData(this);
+            r.setData(this.getContacts());
     }
 
     private Loader<Cursor> contactsLoader() {
@@ -66,11 +65,12 @@ public class ActualContactListProvider implements
     }
 
     @Override
-    public List<Entry> getContacts() {
-        ArrayList <Entry> res = new ArrayList<>();
-        if(mCursor==null)
+    public List<PhoneBookEntry> getContacts() {
+        ArrayList <PhoneBookEntry> res = new ArrayList<>();
+        if(mCursor==null ||
+            !mCursor.moveToFirst())
             return res;
-        mCursor.moveToFirst();
+
         do {
             String nameStr = mCursor.getString(0);
             String phoneStr = mCursor.getString(1);
@@ -88,23 +88,20 @@ public class ActualContactListProvider implements
 
     @Override
     public void unsubscribe(ContactListReceiver clr) {
-        if(subscribers.contains(clr))
             subscribers.remove(clr);
     }
     @SuppressLint("Range")
     public String getEmail(long contactId) {
         ContentResolver contentResolver = ctx.getContentResolver();
         ArrayList<String> emails = new ArrayList<>();
-        try {
-            Cursor cursor = contentResolver
-                    .query(ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-                            null,
-                            ContactsContract.CommonDataKinds.Email.CONTACT_ID
-                                    + "="
-                                    + contactId, null, null);
+        try (Cursor cursor = contentResolver
+                .query(ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                        null,
+                        ContactsContract.CommonDataKinds.Email.CONTACT_ID
+                                + "="
+                                + contactId, null, null)) {
             while (cursor.moveToNext())
                 emails.add(cursor.getString(cursor.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)));
-            cursor.close();
             if (emails.size() > 0)
                 return emails.get(0);
         } catch (Exception e) {

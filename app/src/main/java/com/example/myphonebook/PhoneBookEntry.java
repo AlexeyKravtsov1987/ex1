@@ -1,56 +1,42 @@
 package com.example.myphonebook;
 
 import android.net.Uri;
-import android.util.Log;
 
-public class PhoneBookEntry implements Entry {
-    private String Name,Number;
+import java.io.Serializable;
 
-    EMailProvider eMailProvider;
-    PictureProvider pictureProvider;
+public class PhoneBookEntry implements Serializable {
+    private final String Name;
+    private final String Number;
+    private final String eMail;
+    private final String pictureUri;
 
     public PhoneBookEntry(String Name, String Number, String email, String picUriStr){
         this.Name=Name;
         this.Number=Number;
-        eMailProvider = new EMailProvider() {
-            @Override
-            public boolean hasEmail() {
-                return email!=null;
-            }
-
-            @Override
-            public String email() {
-                return email;
-            }
-        };
-        pictureProvider=new PictureProvider() {
-            @Override
-            public boolean hasPicture() {
-                return picUriStr!=null;
-            }
-
-            @Override
-            public Uri pic() {
-                if(picUriStr==null)
-                    return null;
-                return Uri.parse(picUriStr);
-            }
-        };
+        this.eMail=email;
+        this.pictureUri=picUriStr;
     }
 
 
-    @Override
     public String name() {
         return Name;
     }
 
-    @Override
+
     public String number() {
         return Number;
     }
 
-    /*@Override
-    public boolean hasPicture() {
-        return false;
-    }*/
+    public boolean hasEMail(){
+        return eMail!=null;
+    }
+    public String getEMail(){
+        return eMail;
+    }
+    public boolean hasPicture(){
+        return pictureUri!=null;
+    }
+    public Uri getPictureUri(){
+        return Uri.parse(pictureUri);
+    }
 }
