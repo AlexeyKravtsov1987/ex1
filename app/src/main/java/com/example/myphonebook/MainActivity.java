@@ -1,5 +1,6 @@
 package com.example.myphonebook;
 
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -9,6 +10,7 @@ import android.content.pm.PackageManager;
 
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.widget.Toast;
 
 
@@ -16,9 +18,20 @@ public class MainActivity extends AppCompatActivity {
     public static String CONTACT_ENTRY="CONTACT_ENTRY";
     private boolean PermissionRequested=false;
     private ContactListProvider myContactListProvider;
-    private ActualContactListProvider myActualContactListProvider;
     private RecyclerView recyclerView;
     private ContactsRecyclerViewAdapter adapter;
+    private ContactsReadAccessProvider accessProvider = new ContactsReadAccessProvider() {
+        @Override
+        public boolean hasAccess() {
+            return (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
+                    getApplicationContext().checkSelfPermission(Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED);
+        }
+
+        @Override
+        public boolean canAskUser() {
+            return !PermissionRequested;
+        }
+    };
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,23 +44,47 @@ public class MainActivity extends AppCompatActivity {
         recyclerView.setAdapter(adapter);
     }
 
-    void switchToActualData(){
-        myActualContactListProvider = new ActualContactListProvider(getApplicationContext());
-        getLoaderManager().initLoader(0,null,myActualContactListProvider);
-        myActualContactListProvider.subscribe(adapter);
+    private void switchToContactListProvider(ContactListProvider clp){
+        if(myContactListProvider!=null)
+            myContactListProvider.unsubscribe(adapter);
+        myContactListProvider=clp;
+        myContactListProvider.subscribe(adapter);
     }
-    @Override
-    protected void onResume(){
-        super.onResume();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M &&
-                getApplicationContext().checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
 
-            if(!PermissionRequested)
-                requestPermissions(new String[]{Manifest.permission.READ_CONTACTS},0);
-        }
-        else {
-            switchToActualData();
-        }
+    private ContactListProvider initActualContactListProvider(){
+        ContactListProvider res = new ActualContactListProvider(getApplicationContext());
+        getLoaderManager().initLoader(0,null,(ActualContactListProvider) res);
+        return res;
+    }
+
+    private ContactListProvider initDummyContactListProvider(){
+        return new DummyContactListProvider();
+    }
+
+    public ContactListProvider getCurrentContactListProvider(){
+        return myContactListProvider;
+    }
+
+    public void setAccessProvider(ContactsReadAccessProvider crap){
+        accessProvider=crap;
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    public void onResumeEx(){
+        if (!accessProvider.hasAccess()) {
+            if (accessProvider.canAskUser())
+                requestPermissions(new String[]{Manifest.permission.READ_CONTACTS}, 0);
+            else
+                switchToContactListProvider(initDummyContactListProvider());
+        } else
+            switchToContactListProvider(initActualContactListProvider());
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.M)
+    @Override
+    protected void onResume() {
+        super.onResume();
+        onResumeEx();
     }
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions,
@@ -60,22 +97,18 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(), R.string.contacts_permission_required,
                             Toast.LENGTH_SHORT).show();
                     PermissionRequested=true;
-                    myContactListProvider = new DummyContactListProvider();
-                    myContactListProvider.subscribe(adapter);
+                    switchToContactListProvider(initDummyContactListProvider());
                 }
                 else if (grantResults.length == 1
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                    switchToActualData();
-
+                    switchToContactListProvider(initActualContactListProvider());
         }
     }
 
     @Override
     protected void onPause(){
         super.onPause();
-        if(myActualContactListProvider!=null)
-            myActualContactListProvider.unsubscribe(adapter);
-        else if(myContactListProvider!=null)
+        if(myContactListProvider!=null)
             myContactListProvider.unsubscribe(adapter);
     }
 
