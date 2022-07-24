@@ -1,6 +1,5 @@
 package com.example.myphonebook;
 
-import static androidx.test.core.app.ApplicationProvider.getApplicationContext;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
@@ -35,11 +34,9 @@ import org.junit.runner.RunWith;
 
 import static org.junit.Assert.*;
 
-import androidx.test.rule.ActivityTestRule;
 import androidx.test.rule.GrantPermissionRule;
 import androidx.test.runner.AndroidJUnit4;
 
-import java.util.ArrayList;
 import java.util.List;
 
 
@@ -63,12 +60,10 @@ public class ExampleInstrumentedTest {
     private MainActivity mainActivity;
     @Rule
     public
-    ActivityScenarioRule a = new ActivityScenarioRule<>(MainActivity.class);
+    ActivityScenarioRule activityScenarioRule = new ActivityScenarioRule<>(MainActivity.class);
     @Test
     public void createDummyContentProvider() throws InterruptedException {
-        a.getScenario().onActivity(activity -> {
-            mainActivity=(MainActivity) activity;
-        });
+
         final String firstName=" The First ";
         final String firstPhone=" +1 001 ";
         final String firstMail ="a@b.c";
@@ -81,16 +76,19 @@ public class ExampleInstrumentedTest {
         Uri phoneURI=Uri.parse("content://" + DummyContentProvider.PROVIDER_NAME + "/PHONES");
         Uri emailURI=Uri.parse("content://" + DummyContentProvider.PROVIDER_NAME + "/EMAIL");
 
-
-        mainActivity.setSourceUris(phoneURI,emailURI);
-
-        a.getScenario().moveToState(Lifecycle.State.STARTED);
-        a.getScenario().moveToState(Lifecycle.State.RESUMED);
-
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
         ContentResolver contentResolver = appContext.getContentResolver();
-        ContactListProvider dummy= mainActivity.getCurrentContactListProvider();
-        List<PhoneBookEntry> list=dummy.getContacts();
+        ActualContactListProvider provider = new ActualContactListProvider(appContext,phoneURI,emailURI);
+        String[] phoneProjection = new String[]{
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
+                ContactsContract.CommonDataKinds.Phone.NUMBER,
+                ContactsContract.CommonDataKinds.Phone.CONTACT_ID,
+                ContactsContract.CommonDataKinds.Photo.PHOTO_URI
+        };
+        provider.onLoadFinished(null,
+                contentResolver
+                        .query(phoneURI, phoneProjection, null, null, null));
+        List<PhoneBookEntry> list=provider.getContacts();
         assertEquals(list.size(),0);
 
         // Create contact 0
@@ -114,28 +112,24 @@ public class ExampleInstrumentedTest {
         // inserting into database through content URI
         contentResolver.insert(phoneURI, phoneValues);
 
-        Thread.sleep(100);
-        list=dummy.getContacts();
+        provider.onLoadFinished(null,
+                contentResolver
+                        .query(phoneURI, phoneProjection, null, null, null));
+        list=provider.getContacts();
         assertEquals(list.size(),2);
 
         PhoneBookEntry entry = list.get(0);
         // check contact 0
-        assertEquals(entry.name(),firstName);
-        assertEquals(entry.number(),firstPhone);
-        assertEquals(entry.getEMail(),firstMail);
-        assertEquals(entry.hasPicture(),false);
+        assertEquals(entry, new PhoneBookEntry(firstName,firstPhone,firstMail,null));
 
         entry = list.get(1);
         // check contact 1
-        assertEquals(entry.name(),secondName);
-        assertEquals(entry.number(),secondPhone);
-        assertEquals(entry.getPictureUri(),Uri.parse(secondPicUriStr));
-        assertEquals(entry.hasEMail(),false);
+        assertEquals(entry,new PhoneBookEntry(secondName,secondPhone,null,secondPicUriStr));
     }
     @Test
     public void scrollToItemBelowFold_checkItsText() {
 
-        ActivityScenario scenario=a.getScenario();
+        ActivityScenario scenario= activityScenarioRule.getScenario();
         scenario.onActivity(activity -> mainActivity=(MainActivity)activity);
         scenario.moveToState(Lifecycle.State.RESUMED);
 

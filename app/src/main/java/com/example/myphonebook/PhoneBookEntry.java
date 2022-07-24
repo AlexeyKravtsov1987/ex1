@@ -3,6 +3,7 @@ package com.example.myphonebook;
 import android.net.Uri;
 
 import java.io.Serializable;
+import java.util.Objects;
 
 public class PhoneBookEntry implements Serializable {
     private final String Name;
@@ -38,5 +39,18 @@ public class PhoneBookEntry implements Serializable {
     }
     public Uri getPictureUri(){
         return Uri.parse(pictureUri);
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        PhoneBookEntry entry = (PhoneBookEntry) o;
+        return Name.equals(entry.Name) && Number.equals(entry.Number) && Objects.equals(eMail, entry.eMail) && Objects.equals(pictureUri, entry.pictureUri);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(Name, Number, eMail, pictureUri);
     }
 }
