@@ -13,6 +13,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyPhoneBook"
         tools:targetApi="31">
+        <provider
+            android:name="com.example.myphonebook.DummyContentProvider"
+            android:authorities="com.example.myphonebook.provider"
+            android:enabled="true"
+            android:exported="false">
+        </provider>
         <activity
             android:name=".DetailsActivity"
             android:exported="false"

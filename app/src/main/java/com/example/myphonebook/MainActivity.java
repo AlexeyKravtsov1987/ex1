@@ -4,19 +4,30 @@ import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.test.platform.app.InstrumentationRegistry;
 
 import android.Manifest;
+import android.content.ContentResolver;
+import android.content.ContentValues;
+import android.content.Context;
+import android.content.Loader;
 import android.content.pm.PackageManager;
 
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.provider.ContactsContract;
 import android.util.Log;
 import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity {
     public static String CONTACT_ENTRY="CONTACT_ENTRY";
+    private Loader myLoader;
+    private int myLoaderId=0;
     private boolean PermissionRequested=false;
+    private Uri PhoneUri=ContactsContract.CommonDataKinds.Phone.CONTENT_URI;
+    private Uri EMailUri=ContactsContract.CommonDataKinds.Email.CONTENT_URI;
     private ContactListProvider myContactListProvider;
     private RecyclerView recyclerView;
     private ContactsRecyclerViewAdapter adapter;
@@ -51,14 +62,25 @@ public class MainActivity extends AppCompatActivity {
         myContactListProvider.subscribe(adapter);
     }
 
-    private ContactListProvider initActualContactListProvider(){
-        ContactListProvider res = new ActualContactListProvider(getApplicationContext());
-        getLoaderManager().initLoader(0,null,(ActualContactListProvider) res);
+    private ContactListProvider initActualContactListProvider(Uri phoneUri, Uri emailUri){
+        ContactListProvider res = new ActualContactListProvider(getApplicationContext(),
+                phoneUri, emailUri);
+        getLoaderManager().enableDebugLogging(true);
+        if(myLoader==null)
+            myLoader = getLoaderManager().initLoader(myLoaderId,null,(ActualContactListProvider) res);
+        else {
+            getLoaderManager().destroyLoader(myLoaderId);
+            myLoader=getLoaderManager().initLoader(myLoaderId++,null,(ActualContactListProvider)res);}
         return res;
     }
 
     private ContactListProvider initDummyContactListProvider(){
         return new DummyContactListProvider();
+    }
+
+    public void setSourceUris(Uri newPhoneUri,Uri newEMailUri){
+        PhoneUri=newPhoneUri;
+        EMailUri=newEMailUri;
     }
 
     public ContactListProvider getCurrentContactListProvider(){
@@ -77,7 +99,9 @@ public class MainActivity extends AppCompatActivity {
             else
                 switchToContactListProvider(initDummyContactListProvider());
         } else
-            switchToContactListProvider(initActualContactListProvider());
+            switchToContactListProvider(
+                    initActualContactListProvider(PhoneUri,EMailUri));
+
     }
 
     @RequiresApi(api = Build.VERSION_CODES.M)
@@ -101,7 +125,8 @@ public class MainActivity extends AppCompatActivity {
                 }
                 else if (grantResults.length == 1
                         && grantResults[0] == PackageManager.PERMISSION_GRANTED)
-                    switchToContactListProvider(initActualContactListProvider());
+                    switchToContactListProvider(
+                            initActualContactListProvider(PhoneUri,EMailUri));
         }
     }
 

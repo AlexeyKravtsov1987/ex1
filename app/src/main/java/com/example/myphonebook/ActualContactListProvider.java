@@ -1,4 +1,6 @@
 package com.example.myphonebook;
+import static androidx.test.internal.runner.junit4.statement.UiThreadStatement.runOnUiThread;
+
 import android.annotation.SuppressLint;
 import android.content.ContentResolver;
 import android.content.Context;
@@ -20,9 +22,13 @@ public class ActualContactListProvider implements
     private final Context ctx;
     List<ContactListReceiver> subscribers;
     public Cursor mCursor=null;
+    private final Uri emailDBUri;
+    private final Uri phoneDBUri;
 
-    public ActualContactListProvider(Context ctx){
+    public ActualContactListProvider(Context ctx, Uri phoneDB,Uri emailDB){
         this.ctx=ctx;
+        this.emailDBUri=emailDB;
+        this.phoneDBUri=phoneDB;
         subscribers=new ArrayList<>();
     }
     @Override
@@ -33,19 +39,30 @@ public class ActualContactListProvider implements
     @Override
     public void onLoadFinished(android.content.Loader<Cursor> loader, Cursor d) {
         mCursor=d;
-        for(ContactListReceiver r:subscribers)
-            r.setData(this.getContacts());
+        List<PhoneBookEntry> list=this.getContacts();
+        for(ContactListReceiver r:subscribers) {
+            try {
+                runOnUiThread(() -> r.setData(list));
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     @Override
     public void onLoaderReset(android.content.Loader<Cursor> loader) {
         mCursor=null;
-        for(ContactListReceiver r:subscribers)
-            r.setData(this.getContacts());
+        List<PhoneBookEntry> list=this.getContacts();
+        for(ContactListReceiver r:subscribers) {
+            try {
+                runOnUiThread(() -> r.setData(list));
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        }
     }
 
     private Loader<Cursor> contactsLoader() {
-        Uri contactsUri = ContactsContract.CommonDataKinds.Phone.CONTENT_URI; // The content URI of the phone contacts
         String[] projection = {                                  // The columns to return for each row
                 ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
                 ContactsContract.CommonDataKinds.Phone.NUMBER,
@@ -57,7 +74,7 @@ public class ActualContactListProvider implements
         String sortOrder = null;                                 //The sort order for the returned rows
         return new CursorLoader(
                 ctx,
-                contactsUri,
+                phoneDBUri,
                 projection,
                 selection,
                 selectionArgs,
@@ -95,7 +112,7 @@ public class ActualContactListProvider implements
         ContentResolver contentResolver = ctx.getContentResolver();
         ArrayList<String> emails = new ArrayList<>();
         try (Cursor cursor = contentResolver
-                .query(ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                .query(emailDBUri,
                         null,
                         ContactsContract.CommonDataKinds.Email.CONTACT_ID
                                 + "="
